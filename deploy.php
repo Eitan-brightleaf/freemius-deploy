@@ -64,7 +64,7 @@
         file_put_contents($zipname_free,file_get_contents($zip_free));
 
         echo "- Downloaded Freemius free version to ".$zipname_free."\n";
-        echo "::set-output name=free_version::" . $zipname_free . "\n";
+        file_put_contents(getenv('GITHUB_OUTPUT'), "free_version=" . $zipname_free . "\n", FILE_APPEND);
 
         // Generate url to download the pro zip
         $zip_pro = $api->GetSignedUrl('plugins/'.$_ENV['PLUGIN_ID'].'/tags/'.$deploy->id.'.zip?is_premium=true', array());
@@ -75,7 +75,7 @@
         file_put_contents($zipname_pro,file_get_contents($zip_pro));
 
         echo "- Downloaded Freemius pro version to ".$zipname_pro."\n";
-        echo "::set-output name=pro_version::" . $zipname_pro . "\n";
+        file_put_contents(getenv('GITHUB_OUTPUT'), "pro_version=" . $zipname_pro . "\n", FILE_APPEND);
     }
     catch (Exception $e) {
         echo "- Freemius server has problems\n";
