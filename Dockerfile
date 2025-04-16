@@ -1,20 +1,10 @@
-FROM php:7.4-cli
+FROM php:8.2-cli
 
-# install git
-RUN apt-get update
-RUN apt-get install -y git
-
-
-ARG file_name
-ARG version
-ARG sandbox
-ARG release_mode
+# Install git and clean up in one step to reduce image size
+RUN apt-get update && apt-get install -y git && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY deploy.php /deploy.php
 COPY ${file_name} /${file_name}
 RUN git clone https://github.com/Freemius/freemius-php-sdk.git /freemius-php-api
-
-EXPOSE 80/tcp
-EXPOSE 80/udp
 
 CMD php /deploy.php

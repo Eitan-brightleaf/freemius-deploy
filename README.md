@@ -1,6 +1,6 @@
 # Freemius Deploy
 
-This Github Action deploys your wordpress plugin on Freemius. It uses the [Freemius PHP SDK](https://github.com/Freemius/freemius-php-sdk.git) and uses some of the functionality of [CodeAtCode/freemius-suite](https://github.com/CodeAtCode/freemius-suite)
+This GitHub Action deploys your WordPress plugin on Freemius. It uses the [Freemius PHP SDK](https://github.com/Freemius/freemius-php-sdk.git) and uses some functionality of [CodeAtCode/freemius-suite](https://github.com/CodeAtCode/freemius-suite)
 
 ## Arguments
 
@@ -15,29 +15,42 @@ This Github Action deploys your wordpress plugin on Freemius. It uses the [Freem
 
 **Required**:
 
-- `PUBLIC_KEY`
+- `PUBLIC_KEY` (Developer Public Key)
 - `DEV_ID`
-- `SECRET_KEY`
+- `SECRET_KEY` (Developer Secret Key)
 - `PLUGIN_SLUG`
 - `PLUGIN_ID`
 
-All these are found in your Freemius dashboard.
+Note: The PUBLIC_KEY and SECRET_KEY are your developer keys from Freemius, not the plugin-specific keys.
+
+All these are found in your Freemius dashboard. You can find your public and secret keys, as well as your Dev ID under 
+the keys section on the bottom of the 'My Profile' page. Your plugin slug and ID you can find on the products' settings 
+page or in the SDK integration snippet.
 
 _Tip: store these variables in your [secrets](https://help.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets)_
 
 ## Action outputs (since v0.1.1)
 
-The action downloads both the **free** and **pro** version and outputs their filenames as outputs:
+The action downloads both the **free** and **pro** versions and outputs their filenames as outputs:
 
 - free_version
 - pro_version
 
-You can access these by setting an **id** to your workflow step. Consequently you can upload these as artifacts, or upload them to the wordpress svn repository, for example with [yukihiko-shinoda/action-deploy-wordpress-plugin](https://github.com/yukihiko-shinoda/action-deploy-wordpress-plugin).
+You can access these by setting an **id** to your workflow step. In a later step reference them like this: 
+
+```
+${{ steps.deploy_step_id.outputs.free_version }}
+${{ steps.deploy_step_id.outputs.pro_version }}
+```
+
+These files can then be uploaded as artifacts or deployed to the WordPress SVN repository using actions like
+[10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy).
 
 ## Example
 
 ```yml
 - name: Deploy to Freemius
+  id: freemius_deploy
   uses: buttonizer/freemius-deploy@v0.1.2
   with:
     file_name: my_wordpress_plugin.zip
