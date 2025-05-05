@@ -26,7 +26,7 @@ if (!in_array($release_mode, $allowed_release_modes)) {
 
 // Other validations
 $file_name = $_ENV['INPUT_FILE_NAME'];
-if (!file_exists("/$file_name")) {
+if (!file_exists("$file_name")) {
     echo "Error: File '$file_name' not found\n";
     exit(1);
 }
