@@ -10,7 +10,7 @@
 // Validate required environment variables
 $required_env = ['DEV_ID', 'PUBLIC_KEY', 'SECRET_KEY', 'PLUGIN_SLUG', 'PLUGIN_ID'];
 foreach ($required_env as $env) {
-    if (!isset($_ENV[$env]) || empty($_ENV[$env])) {
+	if ( empty($_ENV[$env]) ) {
         echo "Error: Required environment variable $env is missing or empty\n";
         exit(1);
     }
@@ -18,7 +18,7 @@ foreach ($required_env as $env) {
 
 // Validate release mode
 $allowed_release_modes = ['pending', 'beta', 'released'];
-$release_mode = !isset($_ENV['INPUT_RELEASE_MODE']) || empty($_ENV['INPUT_RELEASE_MODE']) ? 'pending' : $_ENV['INPUT_RELEASE_MODE'];
+$release_mode = empty($_ENV['INPUT_RELEASE_MODE']) ? 'pending' : $_ENV['INPUT_RELEASE_MODE'];
 if (!in_array($release_mode, $allowed_release_modes)) {
     echo "Error: Invalid release mode '$release_mode'. Allowed values are: " . implode(', ', $allowed_release_modes) . "\n";
     exit(1);
@@ -36,7 +36,7 @@ if (!file_exists("$file_name")) {
 $file_name = $_ENV['INPUT_FILE_NAME'];
 $version = $_ENV['INPUT_VERSION'];
 $sandbox = ($_ENV['INPUT_SANDBOX'] === 'true');
-$release_mode = !isset($_ENV['INPUT_RELEASE_MODE']) || empty($_ENV['INPUT_RELEASE_MODE']) ? 'pending' : $_ENV['INPUT_RELEASE_MODE'];
+$release_mode = empty($_ENV['INPUT_RELEASE_MODE']) ? 'pending' : $_ENV['INPUT_RELEASE_MODE'];
 
 echo "\n- Deploying " . $_ENV['PLUGIN_SLUG'] . " to Freemius, with arguments: ";
 echo "\n- file_name: " . $file_name . " version: " . $version . " sandbox: " . $sandbox . " release_mode: " . $release_mode;
@@ -55,7 +55,8 @@ echo "\n- Deploy in progress on Freemius\n";
 
 try {
     // Init SDK.
-    $api = new Freemius_Api(FS__API_SCOPE, FS__API_DEV_ID, FS__API_PUBLIC_KEY, FS__API_SECRET_KEY, $sandbox);
+	echo "::debug::Initializing Freemius API client\n";
+	$api = new Freemius_Api(FS__API_SCOPE, FS__API_DEV_ID, FS__API_PUBLIC_KEY, FS__API_SECRET_KEY, $sandbox);
 
     if (!is_object($api)) {
         echo "Error: Failed to initialize Freemius API client\n";
@@ -64,7 +65,9 @@ try {
 
     // Fetch all existing version tags for the plugin
     // This is used to check if the current version already exists
-    $tags_response = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'GET');
+	echo "::debug::Fetching existing version tags for plugin ID: " . $_ENV['PLUGIN_ID'] . "\n";
+	$tags_response = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'GET');
+	echo "::debug:: Fetched existing version tags: " . print_r($tags_response, true) . "\n";
 
     // Check if version already exists
     $version_exists = false;
@@ -89,24 +92,20 @@ try {
             'file' => $file_name
         ));
 
-        if (!property_exists($deploy, 'id')) {
-            print_r($deploy);
-            die();
-        }
+	    echo "::debug:: response: " . print_r($deploy, true) . "\n";
 
         echo "- Deploy done on Freemius\n";
-
-        $is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', array(
-            'release_mode' => $release_mode
-        ), array());
-
-        echo "- Set as released on Freemius\n";
     }
+	$is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', array(
+		'release_mode' => $release_mode
+	), array());
 
-    echo "- Download Freemius free version\n";
+	echo "- Set as $release_mode on Freemius\n";
+
+	echo "- Download Freemius free version\n";
 
     // Generate url to download the zip
-    $zip_free = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip', array());
+	$zip_free = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip', array());
     $path = pathinfo($file_name);
     $zipname_free = $path['dirname'] . '/' . basename($file_name, '.zip');
     $zipname_free .= '__free.zip';
@@ -122,7 +121,7 @@ try {
     file_put_contents(getenv('GITHUB_OUTPUT'), "free_version=" . $zipname_free . "\n", FILE_APPEND);
 
     // Generate url to download the pro-zip
-    $zip_pro = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip?is_premium=true', array());
+	$zip_pro = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip?is_premium=true', array());
     $path = pathinfo($file_name);
     $zipname_pro = $path['dirname'] . '/' . basename($file_name, '.zip');
     $zipname_pro .= '.zip';
