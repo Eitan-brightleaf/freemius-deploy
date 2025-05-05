@@ -55,7 +55,6 @@ echo "\n- Deploy in progress on Freemius\n";
 
 try {
     // Init SDK.
-	echo "::debug::Initializing Freemius API client\n";
 	$api = new Freemius_Api(FS__API_SCOPE, FS__API_DEV_ID, FS__API_PUBLIC_KEY, FS__API_SECRET_KEY, $sandbox);
 
     if (!is_object($api)) {
@@ -65,11 +64,12 @@ try {
 
     // Fetch all existing version tags for the plugin
     // This is used to check if the current version already exists
-	echo "::debug::Fetching existing version tags for plugin ID: " . $_ENV['PLUGIN_ID'] . "\n";
 	$tags_response = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'GET');
-	echo "::debug:: Fetched existing version tags: " . print_r($tags_response, true) . "\n";
+	if (!empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true' ) {
+		echo "::debug:: Fetched existing version tags: " . print_r( $tags_response, true ) . "\n";
+	}
 
-    // Check if version already exists
+	// Check if version already exists
     $version_exists = false;
     $existing_tag = null;
     foreach ($tags_response->tags as $tag) {
@@ -92,9 +92,16 @@ try {
             'file' => $file_name
         ));
 
-	    echo "::debug:: response: " . print_r($deploy, true) . "\n";
+	    if (!empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true' ) {
+		    echo "::debug:: response: " . print_r( $deploy, true ) . "\n";
+	    }
 
-        echo "- Deploy done on Freemius\n";
+	    if (!property_exists($deploy, 'id')) {
+		    echo "Deploy failed. No id in response object.";
+		    exit(1);
+	    }
+
+	    echo "- Deploy done on Freemius\n";
     }
 	$is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', array(
 		'release_mode' => $release_mode
