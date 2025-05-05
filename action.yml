@@ -4,7 +4,7 @@ inputs:
   sandbox:
     description: 'Sandbox mode'
     required: false
-    default: false
+    default: 'false'
   file_name:
     description: 'file to deploy'
     required: true
