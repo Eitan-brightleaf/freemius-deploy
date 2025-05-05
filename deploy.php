@@ -124,7 +124,7 @@ try {
 	$zip_pro = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip?is_premium=true', array());
     $path = pathinfo($file_name);
     $zipname_pro = $path['dirname'] . '/' . basename($file_name, '.zip');
-    $zipname_pro .= '.zip';
+    $zipname_pro .= '__pro.zip';
 
     file_put_contents($zipname_pro, file_get_contents($zip_pro));
 
