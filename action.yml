@@ -1,20 +1,43 @@
 name: "Deploy on Freemius"
 description: "Uploads and deploys your plugin on Freemius"
 inputs:
-  sandbox:
-    description: 'Sandbox mode'
-    required: false
-    default: 'false'
   file_name:
     description: 'file to deploy'
-    required: true
-  version:
-    description: 'tag version'
     required: true
   release_mode:
     description: 'release mode'
     required: false
     default: 'pending'
+  version:
+    description: 'tag version. used to compare against existing tags.'
+    required: true
+  sandbox:
+    description: 'Sandbox mode'
+    required: false
+    default: 'false'
+  limit:
+    description: 'limit of serving updates'
+    required: false
+  percentage_limit:
+    description: 'The percentage (1-100%) of license owners who will receive an update'
+    required: false
+  is_incremental:
+    description: 'Whether to flag the version as incremental or not'
+    required: false
+    default: 'false'
+  add_contributor:
+    description: 'add freemius as a contributor to the plugin'
+    required: false
+    default: 'false'
+  overwrite:
+    description: 'overwrite a tag with the same version, otherwise skips upload'
+    default: 'false'
+    required: false
+  num_versions:
+    description: 'Number of existing tags to compare version against'
+    required: false
+    default: '1'
+
 outputs:
   free_version:
     description: 'The Free version file'
