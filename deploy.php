@@ -15,28 +15,30 @@ foreach ($required_env as $env) {
         exit(1);
     }
 }
-
-// Validate release mode
-$allowed_release_modes = ['pending', 'beta', 'released'];
-$release_mode = empty($_ENV['INPUT_RELEASE_MODE']) ? 'pending' : $_ENV['INPUT_RELEASE_MODE'];
-if (!in_array($release_mode, $allowed_release_modes)) {
-    echo "Error: Invalid release mode '$release_mode'. Allowed values are: " . implode(', ', $allowed_release_modes) . "\n";
-    exit(1);
-}
-
-// Other validations
 $file_name = $_ENV['INPUT_FILE_NAME'];
 if (!file_exists("$file_name")) {
-    echo "Error: File '$file_name' not found\n";
-    exit(1);
+	echo "Error: File '$file_name' not found\n";
+	exit(1);
 }
 
-// run as: php /deploy.php $file_name $version $sandbox $release_mode
-// with env vars: USER_ID, PUBLIC_KEY, SECRET_KEY, PLUGIN_SLUG, PLUGIN_ID
-$file_name = $_ENV['INPUT_FILE_NAME'];
+// Validate release mode
+$release_mode = empty($_ENV['INPUT_RELEASE_MODE']) ? 'pending' : $_ENV['INPUT_RELEASE_MODE'];
+if (!in_array($release_mode, ['pending', 'beta', 'released'])) {
+    $release_mode = 'pending'; //fallback to default
+	echo "Warning: Invalid release mode '$release_mode', falling back to 'pending'\n";
+}
+
+// set other input variables
 $version = $_ENV['INPUT_VERSION'];
 $sandbox = ($_ENV['INPUT_SANDBOX'] === 'true');
-$release_mode = empty($_ENV['INPUT_RELEASE_MODE']) ? 'pending' : $_ENV['INPUT_RELEASE_MODE'];
+$release_limit = intval($_ENV['INPUT_LIMIT']);
+$percentage_limit = intval($_ENV['INPUT_LIMIT_PERCENTAGE']);
+$is_incremental = ($_ENV['INPUT_IS_INCREMENTAL'] === 'true');
+$add_contributor = ($_ENV['INPUT_ADD_CONTRIBUTOR'] === 'true');
+$overwrite = ($_ENV['INPUT_OVERWRITE'] === 'true');
+$num_versions = intval($_ENV['INPUT_NUM_VERSIONS']);
+
+$debugging = !empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true';
 
 echo "\n- Deploying " . $_ENV['PLUGIN_SLUG'] . " to Freemius, with arguments: ";
 echo "\n- file_name: " . $file_name . " version: " . $version . " sandbox: " . $sandbox . " release_mode: " . $release_mode;
@@ -65,7 +67,7 @@ try {
     // Fetch all existing version tags for the plugin
     // This is used to check if the current version already exists
 	$tags_response = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'GET');
-	if (!empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true' ) {
+	if ($debugging ) {
 		echo "::debug:: Fetched existing version tags: " . print_r( $tags_response, true ) . "\n";
 	}
 
@@ -92,12 +94,15 @@ try {
             'file' => $file_name
         ));
 
-	    if (!empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true' ) {
+	    if ($debugging ) {
 		    echo "::debug:: response: " . print_r( $deploy, true ) . "\n";
 	    }
 
 	    if (!property_exists($deploy, 'id')) {
 		    echo "Deploy failed. No id in response object.";
+            if (!$debugging) { //we didn't already echo the response
+                echo "Response: " . print_r($deploy, true) . "\n";
+            }
 		    exit(1);
 	    }
 
@@ -112,7 +117,7 @@ try {
 	echo "- Download Freemius free version\n";
 
     // Generate url to download the zip
-	$zip_free = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip', array());
+	$zip_free = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip');
     $path = pathinfo($file_name);
     $zipname_free = $path['dirname'] . '/' . basename($file_name, '.zip');
     $zipname_free .= '__free.zip';
@@ -128,7 +133,7 @@ try {
     file_put_contents(getenv('GITHUB_OUTPUT'), "free_version=" . $zipname_free . "\n", FILE_APPEND);
 
     // Generate url to download the pro-zip
-	$zip_pro = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip?is_premium=true', array());
+	$zip_pro = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip?is_premium=true');
     $path = pathinfo($file_name);
     $zipname_pro = $path['dirname'] . '/' . basename($file_name, '.zip');
     $zipname_pro .= '__pro.zip';
