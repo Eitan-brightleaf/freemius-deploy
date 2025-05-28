@@ -8,9 +8,6 @@ inputs:
     description: 'release mode'
     required: false
     default: 'pending'
-  version:
-    description: 'tag version. used to compare against existing tags.'
-    required: true
   sandbox:
     description: 'Sandbox mode'
     required: false
@@ -33,10 +30,6 @@ inputs:
     description: 'overwrite a tag with the same version, otherwise skips upload'
     default: 'false'
     required: false
-  num_versions:
-    description: 'Number of existing tags to compare version against'
-    required: false
-    default: '1'
 
 outputs:
   free_version:

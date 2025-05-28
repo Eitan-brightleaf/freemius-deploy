@@ -29,19 +29,17 @@ if (!in_array($release_mode, ['pending', 'beta', 'released'])) {
 }
 
 // set other input variables
-$version = $_ENV['INPUT_VERSION'];
 $sandbox = ($_ENV['INPUT_SANDBOX'] === 'true');
 $release_limit = intval($_ENV['INPUT_LIMIT']);
 $percentage_limit = intval($_ENV['INPUT_LIMIT_PERCENTAGE']);
 $is_incremental = ($_ENV['INPUT_IS_INCREMENTAL'] === 'true');
 $add_contributor = ($_ENV['INPUT_ADD_CONTRIBUTOR'] === 'true');
 $overwrite = ($_ENV['INPUT_OVERWRITE'] === 'true');
-$num_versions = intval($_ENV['INPUT_NUM_VERSIONS']);
 
 $debugging = !empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true';
 
 echo "\n- Deploying " . $_ENV['PLUGIN_SLUG'] . " to Freemius, with arguments: ";
-echo "\n- file_name: " . $file_name . " version: " . $version . " sandbox: " . $sandbox . " release_mode: " . $release_mode;
+echo "\n- file_name: " . $file_name . " sandbox: " . $sandbox . " release_mode: " . $release_mode;
 
 // Include Freemius SDK files
 require_once '/freemius-php-api/freemius/FreemiusBase.php';
@@ -64,53 +62,30 @@ try {
         exit(1);
     }
 
-    // Fetch all existing version tags for the plugin
-    // This is used to check if the current version already exists
-	$tags_response = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'GET');
-	if ($debugging ) {
-		echo "::debug:: Fetched existing version tags: " . print_r( $tags_response, true ) . "\n";
+	// Upload the zip
+	$deploy = $api->Api( 'plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'POST', [
+		'add_contributor' => $add_contributor
+	], [
+		'file' => $file_name
+	] );
+
+	if ( $debugging ) {
+		echo "::debug:: response: " . print_r( $deploy, true ) . "\n";
 	}
 
-	// Check if version already exists
-    $version_exists = false;
-    $existing_tag = null;
-    foreach ($tags_response->tags as $tag) {
-        if ($tag->version === $version) {
-            $version_exists = true;
-            $existing_tag = $tag;
-            break;
-        }
-    }
+	if ( ! property_exists( $deploy, 'id' ) ) {
+		echo "Deploy failed. No id in response object.";
+		if ( ! $debugging ) { //we didn't already echo the response
+			echo "Response: " . print_r( $deploy, true ) . "\n";
+		}
+		exit( 1 );
+	}
 
-    // Handle existing version
-    if ($version_exists) {
-        $deploy = $existing_tag;
-        echo "Package version $version already deployed on Freemius";
-    } else {
-        // Upload the zip
-        $deploy = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'POST', array(
-            'add_contributor' => false
-        ), array(
-            'file' => $file_name
-        ));
+	echo "- Deploy done on Freemius\n";
 
-	    if ($debugging ) {
-		    echo "::debug:: response: " . print_r( $deploy, true ) . "\n";
-	    }
-
-	    if (!property_exists($deploy, 'id')) {
-		    echo "Deploy failed. No id in response object.";
-            if (!$debugging) { //we didn't already echo the response
-                echo "Response: " . print_r($deploy, true) . "\n";
-            }
-		    exit(1);
-	    }
-
-	    echo "- Deploy done on Freemius\n";
-    }
-	$is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', array(
+	$is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', [
 		'release_mode' => $release_mode
-	), array());
+	], [] );
 
 	echo "- Set as $release_mode on Freemius\n";
 
