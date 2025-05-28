@@ -35,6 +35,7 @@ $percentage_limit = intval($_ENV['INPUT_LIMIT_PERCENTAGE']);
 $is_incremental = ($_ENV['INPUT_IS_INCREMENTAL'] === 'true');
 $add_contributor = ($_ENV['INPUT_ADD_CONTRIBUTOR'] === 'true');
 $overwrite = ($_ENV['INPUT_OVERWRITE'] === 'true');
+$fail_on_duplicate = ($_ENV['INPUT_FAIL_ON_DUPLICATE'] === 'true');
 
 $debugging = !empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true';
 
@@ -74,6 +75,10 @@ try {
 	if ( ! property_exists( $deploy, 'id' ) && property_exists( $deploy, 'error' ) ) {
 		// if it's a duplicate version error, then our response depends on whether we want to overwrite or not
 		if ( $deploy->error->http == 400 && 'duplicate_plugin_version' === $deploy->error->code ) {
+			if ( $fail_on_duplicate ) {
+				echo "Deploy failed. Product version already exists.\n";
+				exit(1);
+			}
 			// if we want to overwrite, then we need to delete the existing version and redeploy it. but have to find id first
 			if ( $overwrite ) {
 				echo "Product already exists. Searching for id of existing product version\n";
@@ -141,7 +146,7 @@ try {
 	if ( ! empty( $release_limit ) ) {
 		$params['release_limit'] = $release_limit;
 	}
-	if ( ! empty( $percentage_limit ) && $percentage_limit > 0 && $percentage_limit < 100 ) {
+	if ( ! empty( $percentage_limit ) && $percentage_limit > 0 && $percentage_limit <= 100 ) {
 		$params['percentage_limit'] = $percentage_limit;
 	}
 	$is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', $params );

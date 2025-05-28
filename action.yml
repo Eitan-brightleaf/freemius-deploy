@@ -26,6 +26,10 @@ inputs:
     description: 'add freemius as a contributor to the plugin'
     required: false
     default: 'false'
+  fail_on_duplicate:
+    description: 'if the action should fail if the version was already uploaded'
+    default: 'true'
+    required: false
   overwrite:
     description: 'overwrite a tag with the same version, otherwise skips upload'
     default: 'false'
