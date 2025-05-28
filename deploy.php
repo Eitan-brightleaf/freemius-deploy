@@ -39,14 +39,15 @@ $overwrite = ($_ENV['INPUT_OVERWRITE'] === 'true');
 $debugging = !empty($_ENV['ACTIONS_STEP_DEBUG']) && $_ENV['ACTIONS_STEP_DEBUG'] === 'true';
 
 echo "\n- Deploying " . $_ENV['PLUGIN_SLUG'] . " to Freemius, with arguments: ";
-echo "\n- file_name: " . $file_name . " sandbox: " . $sandbox . " release_mode: " . $release_mode;
+echo "\n- file_name: $file_name release_mode: $release_mode sandbox: $sandbox release_limit: $release_limit percentage_limit: $percentage_limit 
+is_incremental: $is_incremental add_contributor: $add_contributor overwrite: $overwrite\n";
 
 // Include Freemius SDK files
 require_once '/freemius-php-api/freemius/FreemiusBase.php';
 require_once '/freemius-php-api/freemius/Freemius.php';
 
 // Configure Freemius API constants
-define('FS__API_SCOPE', 'developer');
+const FS__API_SCOPE = 'developer';
 define('FS__API_DEV_ID', $_ENV['DEV_ID']);
 define('FS__API_PUBLIC_KEY', $_ENV['PUBLIC_KEY']);
 define('FS__API_SECRET_KEY', $_ENV['SECRET_KEY']);
@@ -63,33 +64,91 @@ try {
     }
 
 	// Upload the zip
-	$deploy = $api->Api( 'plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'POST', [
-		'add_contributor' => $add_contributor
-	], [
-		'file' => $file_name
-	] );
+	$deploy = $api->Api( 'plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'POST', [ 'add_contributor' => $add_contributor ], [ 'file' => $file_name ] );
 
 	if ( $debugging ) {
 		echo "::debug:: response: " . print_r( $deploy, true ) . "\n";
 	}
 
-	if ( ! property_exists( $deploy, 'id' ) ) {
-		echo "Deploy failed. No id in response object.";
-		if ( ! $debugging ) { //we didn't already echo the response
-			echo "Response: " . print_r( $deploy, true ) . "\n";
+	// if no id then it failed
+	if ( ! property_exists( $deploy, 'id' ) && property_exists( $deploy, 'error' ) ) {
+		// if it's a duplicate version error, then our response depends on whether we want to overwrite or not
+		if ( $deploy->error->http == 400 && 'duplicate_plugin_version' === $deploy->error->code ) {
+			// if we want to overwrite, then we need to delete the existing version and redeploy it. but have to find id first
+			if ( $overwrite ) {
+				echo "Product already exists. Searching for id of existing product version\n";
+				$id = null;
+				$version = $deploy->error->data->version;
+				$query = ['offset' => 0];
+				while ( is_null( $id ) ) {
+					$tags_response = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'GET', $query );
+					if ( $debugging ) {
+						echo "::debug:: tags_response: " . print_r( $tags_response, true ) . "\n";
+					}
+
+					if (empty($tags_response->tags)) {
+						// no more tags and still didn't find id. something wrong so exit
+						echo "Could not find version $version. Aborting.\n";
+						exit(1);
+					}
+
+					foreach ($tags_response->tags as $tag) {
+						if ($tag->version === $version) {
+							$id = $tag->id;
+							if ( $debugging ) {
+								echo "::debug:: Found id: $id\n";
+							}
+							break;
+						}
+					}
+					$query['offset'] += 25;
+				}
+				echo "Deleting existing product version\n";
+				$api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $id . '.zip', 'DELETE');
+				echo "Redeploying product\n";
+				$deploy = $api->Api( 'plugins/' . $_ENV['PLUGIN_ID'] . '/tags.json', 'POST', [ 'add_contributor' => $add_contributor ], [ 'file' => $file_name ] );
+				if ( $debugging ) {
+					echo "::debug:: response: " . print_r( $deploy, true ) . "\n";
+				}
+				if ( ! property_exists( $deploy, 'id' ) ) {
+					echo "Deploy failed. No id in response object.\n";
+					if ( ! $debugging ) {
+						echo "Response: " . print_r( $deploy, true ) . "\n";
+					}
+					exit( 1 );
+				}
+
+			} else {
+				// not overwriting, continue with script
+				echo "Deploy failed. Product version already exists.\n";
+			}
+		} else {
+			// wasn't a duplicate version error, so exit with error
+			echo "Deploy failed. No id in response object.";
+			if ( ! $debugging ) { //we didn't already echo the response
+				echo "Response: " . print_r( $deploy, true ) . "\n";
+			}
+			exit( 1 );
 		}
-		exit( 1 );
 	}
 
 	echo "- Deploy done on Freemius\n";
 
-	$is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', [
-		'release_mode' => $release_mode
-	], [] );
+	$params = [
+		'release_mode' => $release_mode,
+		'is_incremental' => $is_incremental,
+	];
+	if ( ! empty( $release_limit ) ) {
+		$params['release_limit'] = $release_limit;
+	}
+	if ( ! empty( $percentage_limit ) && $percentage_limit > 0 && $percentage_limit < 100 ) {
+		$params['percentage_limit'] = $percentage_limit;
+	}
+	$is_released = $api->Api('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.json', 'PUT', $params );
 
-	echo "- Set as $release_mode on Freemius\n";
+	echo "- Updated on Freemius with settings " . var_export( $params, true ) . "\n";
 
-	echo "- Download Freemius free version\n";
+	echo "- Downloading Freemius free version\n";
 
     // Generate url to download the zip
 	$zip_free = $api->GetSignedUrl('plugins/' . $_ENV['PLUGIN_ID'] . '/tags/' . $deploy->id . '.zip');
