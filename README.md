@@ -24,9 +24,9 @@ Set the following required environment variables in your GitHub repository [secr
 
 - `DEV_ID`: Your Freemius Developer ID
 
-- `FREEMIUS_PUBLIC_KEY`: Your Freemius Public Key
+- `PUBLIC_KEY`: Your Freemius Public Key
 
-- `FREEMIUS_SECRET_KEY`: Your Freemius Secret Key
+- `SECRET_KEY`: Your Freemius Secret Key
 
 - `PLUGIN_SLUG`: Your plugin's slug
 
