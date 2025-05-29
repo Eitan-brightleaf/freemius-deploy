@@ -31,7 +31,7 @@ if (!in_array($release_mode, ['pending', 'beta', 'released'])) {
 // set other input variables
 $sandbox = ($_ENV['INPUT_SANDBOX'] === 'true');
 $release_limit = intval($_ENV['INPUT_LIMIT']);
-$percentage_limit = intval($_ENV['INPUT_LIMIT_PERCENTAGE']);
+$percentage_limit = intval($_ENV['INPUT_PERCENTAGE_LIMIT']);
 $is_incremental = ($_ENV['INPUT_IS_INCREMENTAL'] === 'true');
 $add_contributor = ($_ENV['INPUT_ADD_CONTRIBUTOR'] === 'true');
 $overwrite = ($_ENV['INPUT_OVERWRITE'] === 'true');
